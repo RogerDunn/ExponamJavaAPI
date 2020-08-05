@@ -58,17 +58,15 @@ public final class Reader implements Closeable {
      * Reader retains access to that password.
      * @param bigFile the Exponam .BIG file to be accessed
      * @param passwordSupplier a caller-supplier function returning the password for the BigFile; can be null or return an empty String for unencrypted files
+     * @throws IOException if there is a problem accessing the file
+     * @throws BigReader.UnsupportedFileVersionException if the file version is more recent than supported by this version of the API
      */
-    public Reader(File bigFile, Supplier<String> passwordSupplier) {
+    public Reader(File bigFile, Supplier<String> passwordSupplier) throws IOException, BigReader.UnsupportedFileVersionException {
         File validatedBigFile = validateBigFileParameter(bigFile);
-        try {
-            bigReader = new BigReader(new FileInputStream(validatedBigFile));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        bigReader = new BigReader(new FileInputStream(validatedBigFile));
 
         String password = passwordSupplier == null ? "" : passwordSupplier.get();
-        bigReader.setDecryptor(DecryptionUtilities.setupDecryptionForPassword(password, bigReader.getTrailer()).get());
+        bigReader.setDecryptor(DecryptionUtilities.setupDecryptionForPassword(password, bigReader).get());
 
         this.marshaller = new Marshaller(this.bigReader);
     }
@@ -102,7 +100,7 @@ public final class Reader implements Closeable {
      */
     public int getRowCount(int worksheetIndex) {
         validateWorksheetIndex(worksheetIndex);
-        return bigReader.getTrailer().getNumRows();
+        return bigReader.getWorksheet(worksheetIndex).getNumRows();
     }
 
     /**
@@ -113,7 +111,7 @@ public final class Reader implements Closeable {
      */
     public int getColumnCount(int worksheetIndex) {
         validateWorksheetIndex(worksheetIndex);
-        return bigReader.getColumns().count();
+        return bigReader.getWorksheet(worksheetIndex).getColumns().count();
     }
 
     /**
@@ -125,7 +123,7 @@ public final class Reader implements Closeable {
      */
     public String getColumnName(int worksheetIndex, int columnIndex) {
         validateWorksheetAndColumnIndex(worksheetIndex, columnIndex);
-        return bigReader.getColumns().columnNames().get(columnIndex);
+        return bigReader.getWorksheet(worksheetIndex).getColumns().get(columnIndex).getName();
     }
 
     /**
@@ -137,7 +135,7 @@ public final class Reader implements Closeable {
      */
     public ColumnTypes getColumnType(int worksheetIndex, int columnIndex) {
         validateWorksheetAndColumnIndex(worksheetIndex, columnIndex);
-        switch (bigReader.getColumns().get(columnIndex).getType()) {
+        switch (bigReader.getWorksheet(worksheetIndex).getColumns().get(columnIndex).getType()) {
             case Boolean:
                 return ColumnTypes.Boolean;
             case Date:
