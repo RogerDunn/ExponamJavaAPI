@@ -5,11 +5,11 @@ plugins {
 }
 
 repositories {
-    mavenCentral()
+    mavenCentral() 
 }
 
 group = 'com.exponam'
-version = '2.0-FINAL'
+version = '2.0.2'
 
 java {
     withJavadocJar()
@@ -17,7 +17,7 @@ java {
 }
 
 dependencies {
-    implementation files('libs/core-reader-1.0-SNAPSHOT.jar')
+    compile files('libs/core-reader-1.0-SNAPSHOT.jar')
     compile libs.guava
     testCompile libs.junit
 }
@@ -88,5 +88,11 @@ signing {
 javadoc {
     if(JavaVersion.current().isJava9Compatible()) {
         options.addBooleanOption('html5', true)
+    }
+}
+
+jar {
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }
