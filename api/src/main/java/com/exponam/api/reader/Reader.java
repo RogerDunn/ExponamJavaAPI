@@ -10,6 +10,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 /**
@@ -212,6 +213,30 @@ public final class Reader implements Closeable {
         validateWorksheetColumnAndRowIndex(worksheetIndex, rowIndex, columnIndex);
         Objects.requireNonNull(desiredClass, "desiredClass");
         return marshaller.getColumnValueAs(worksheetIndex, rowIndex, columnIndex, desiredClass);
+    }
+
+    /**
+     * This method is recommended for reading large numbers of row-wise data.  The types that
+     * are supported in desiredClassForColumns follow the same rules as given for getValue.
+     * @param worksheetIndex the zero-based worksheet index
+     * @param startRow the zero-based index for the first row in the range of rows to be retrieved
+     * @param endRow the zero-based index for the last row in the range of rows to be retrieved
+     * @param columnIndexes array of the zero-based column indexes for the columns to be retrieved
+     * @param desiredClassForColumns array of the desired type for for each of the columns to be retrieved
+     * @param rowConsumer the callback invoked for each row that is retrieved
+     */
+    public void getRowValues(int worksheetIndex, int startRow, int endRow,
+                             int[] columnIndexes, Type[] desiredClassForColumns,
+                             BiConsumer<Integer, Object[]> rowConsumer) {
+        validateWorksheetIndex(worksheetIndex);
+        if (startRow < 0) throw new RuntimeException("Start row must be >= 0");
+        if (endRow >= getRowCount(worksheetIndex)) throw new RuntimeException(
+                String.format("End row must be < %d", getRowCount(worksheetIndex)));
+        if (startRow > endRow) throw new RuntimeException("Start row must be <= end row");
+
+        marshaller.fetchRows(worksheetIndex, startRow, endRow,
+                columnIndexes, desiredClassForColumns,
+                rowConsumer);
     }
 
     /**
