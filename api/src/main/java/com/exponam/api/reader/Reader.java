@@ -172,9 +172,15 @@ public final class Reader implements Closeable {
      *             <li>Long, Integer, Short, Byte, Double, Float, BigDecimal, and Optional of any of these</li>
      *         </ul>
      *     </li>
-     *     <li>Date and DateTime columns can be retrieved as
+     *     <li>Date columns can be retrieved as
      *         <ul>
      *             <li>java.util.Date and java.sql.Date, and Optional of either of these</li>
+     *             <li>Long and BigDecimal, and Optional of either of these</li>
+     *         </ul>
+     *     </li>
+     *     <li>DateTime columns can be retrieved as
+     *         <ul>
+     *             <li>java.util.Date, java.sql.Date and java.sql.Timestamp, and Optional of any of these</li>
      *             <li>Long and BigDecimal, and Optional of either of these</li>
      *         </ul>
      *     </li>
@@ -197,7 +203,7 @@ public final class Reader implements Closeable {
      *     </li>
      *     <li>Time columns can be retrieved as
      *         <ul>
-     *             <li>java.util.Date and java.sql.Date, and Optional of either of these (note that the time is expressed relative to a Date of January 1, 0001)</li>
+     *             <li>java.util.Date and java.sql.Time, and Optional of either of these (note that the time is expressed relative to a Date of January 1, 0001)</li>
      *             <li>Long and BigDecimal, and Optional of either of these</li>
      *         </ul>
      *     </li>
