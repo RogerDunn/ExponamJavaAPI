@@ -3,15 +3,19 @@ package com.exponam.api.reader;
 import com.exponam.core.crypto.DecryptionUtilities;
 import com.exponam.core.reader.BigReader;
 import com.exponam.core.reader.Marshaller;
+import com.exponam.core.reader.QueryColumnAttributes;
 
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * Reader is the single point of entry for accessing the contents of Exponam .BIG files.
@@ -223,26 +227,47 @@ public final class Reader implements Closeable {
 
     /**
      * This method is recommended for reading large numbers of row-wise data.  The types that
-     * are supported in desiredClassForColumns follow the same rules as given for getValue.
+     * are supported in QueryColumnAttributes follow the same rules as given for getValue.
+     * <p>
+     * The queryColumns parameter describes the columns involved in the query.  It is a map, with the
+     * key being the zero-based column index, and the value an instance of QueryColumnAttributes.
+     * A column can be involved in the query as data to be projected into the result, and/or as data
+     * to be filtered.
+     * <p>
+     * Data is returned to the caller via the rowConsumer.  Your rowConsumer is a function that accepts
+     * two parameters: an integer indicating the zero-based row number, and a function that will return
+     * the value in that row for a given column, where the type of that value will correspond to the type
+     * specified in the QueryColumnAttributes for that column.
+     * <p>
+     * The optional filter that is applied to QueryColumnAttributes acts only within that column.  The filter
+     * can be simple, such as a simple comparison filter, string filter, or check for null.  Complex filters
+     * can also be formed using And and Or logic.
      * @param worksheetIndex the zero-based worksheet index
      * @param startRow the zero-based index for the first row in the range of rows to be retrieved
      * @param endRow the zero-based index for the last row in the range of rows to be retrieved
-     * @param columnIndexes array of the zero-based column indexes for the columns to be retrieved
-     * @param desiredClassForColumns array of the desired type for for each of the columns to be retrieved
+     * @param queryColumns map describing the columns to be fetched
      * @param rowConsumer the callback invoked for each row that is retrieved
      */
     public void getRowValues(int worksheetIndex, int startRow, int endRow,
-                             int[] columnIndexes, Type[] desiredClassForColumns,
-                             BiConsumer<Integer, Object[]> rowConsumer) {
+                             Map<Integer, QueryColumn> queryColumns,
+                             BiConsumer<Integer, Function<Integer, Object>> rowConsumer) {
         validateWorksheetIndex(worksheetIndex);
-        if (startRow < 0) throw new RuntimeException("Start row must be >= 0");
-        if (endRow >= getRowCount(worksheetIndex)) throw new RuntimeException(
+        if (startRow < 0) throw new IllegalArgumentException("Start row must be >= 0");
+        if (endRow >= getRowCount(worksheetIndex)) throw new IllegalArgumentException(
                 String.format("End row must be < %d", getRowCount(worksheetIndex)));
-        if (startRow > endRow) throw new RuntimeException("Start row must be <= end row");
+        if (startRow > endRow) throw new IllegalArgumentException("Start row must be <= end row");
+        Objects.requireNonNull(queryColumns, "queryColumns");
+        if (queryColumns.isEmpty()) throw new IllegalArgumentException("queryColumns cannot be empty");
 
+        Map<Integer, QueryColumnAttributes> internalQueryColumns =
+                queryColumns.entrySet().stream()
+                        .collect(
+                                Collectors.toMap(Map.Entry::getKey,
+                                        entry -> new QueryColumnAttributes(entry.getValue().getProject(),
+                                                entry.getValue().getDesiredType(),
+                                                entry.getValue().getColumnFilter().map(FilterTranslation::map))));
         marshaller.fetchRows(worksheetIndex, startRow, endRow,
-                columnIndexes, desiredClassForColumns,
-                rowConsumer);
+                internalQueryColumns, rowConsumer);
     }
 
     /**
